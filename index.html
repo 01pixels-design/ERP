@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Abarrotes Inventario</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #667085;
+    --border: #e3e6eb; --accent: #1f7a4d; --accent-text: #ffffff;
+    --danger: #c0392b; --warn-bg: #fff4e0; --warn: #9a5b00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151b; --card: #1b2029; --text: #e7eaf0; --muted: #98a2b3;
+      --border: #2b3240; --accent: #34a46b; --accent-text: #0d1310;
+      --danger: #e5675a; --warn-bg: #3a2c12; --warn: #f2b45a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header { background: var(--accent); color: var(--accent-text); padding: 16px; }
+  header h1 { margin: 0; font-size: 1.3rem; }
+  main { max-width: 960px; margin: 0 auto; padding: 16px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .stat, .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .stat small { color: var(--muted); display: block; }
+  .stat strong { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+  .card { margin-bottom: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 1.05rem; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tabs button { flex: 1; }
+  button {
+    font: inherit; border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; cursor: pointer;
+  }
+  button.primary, .tabs button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button.danger { color: var(--danger); }
+  button.small { padding: 4px 8px; font-size: .85rem; }
+  input, select {
+    font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
+    background: var(--bg); color: var(--text); width: 100%;
+  }
+  form.row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: end; }
+  label { font-size: .8rem; color: var(--muted); display: block; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { font-size: .8rem; color: var(--muted); font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.low td { background: var(--warn-bg); }
+  .badge { font-size: .75rem; color: var(--warn); font-weight: 600; margin-left: 6px; }
+  .actions { display: flex; gap: 4px; justify-content: flex-end; }
+  .hidden { display: none; }
+  .empty { color: var(--muted); text-align: center; padding: 16px; }
+  .total { text-align: right; font-size: 1.1rem; margin-top: 10px; }
+  @media (max-width: 600px) {
+    form.row { grid-template-columns: 1fr 1fr; }
+    form.row .wide { grid-column: 1 / -1; }
+  }
+</style>
+</head>
+<body>
+<header><h1>🛒 Abarrotes — Inventario</h1></header>
+<main>
+  <section class="stats">
+    <div class="stat"><small>Productos</small><strong id="stProductos">0</strong></div>
+    <div class="stat"><small>Unidades en stock</small><strong id="stUnidades">0</strong></div>
+    <div class="stat"><small>Valor del inventario</small><strong id="stValor">$0</strong></div>
+    <div class="stat"><small>Ventas de hoy</small><strong id="stVentas">$0</strong></div>
+  </section>
+
+  <nav class="tabs">
+    <button data-tab="inventario" class="active">Inventario</button>
+    <button data-tab="vender">Vender</button>
+    <button data-tab="ventas">Historial de ventas</button>
+  </nav>
+
+  <!-- INVENTARIO -->
+  <section id="tab-inventario">
+    <div class="card">
+      <h2 id="formTitulo">Agregar producto</h2>
+      <form id="formProducto" class="row">
+        <div class="wide"><label>Nombre</label><input id="fNombre" required></div>
+        <div><label>Precio</label><input id="fPrecio" type="number" min="0" step="50" required></div>
+        <div><label>Cantidad</label><input id="fCantidad" type="number" min="0" step="1" required></div>
+        <div class="wide actions">
+          <button type="submit" class="primary" id="btnGuardar">Agregar</button>
+          <button type="button" id="btnCancelar" class="hidden">Cancelar</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <input id="buscar" placeholder="Buscar producto…" style="margin-bottom:10px">
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Producto</th><th class="num">Precio</th><th class="num">Cantidad</th>
+            <th class="num">Valor</th><th class="num">Acciones</th>
+          </tr></thead>
+          <tbody id="tablaInventario"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- VENDER -->
+  <section id="tab-vender" class="hidden">
+    <div class="card">
+      <h2>Nueva venta</h2>
+      <form id="formVenta" class="row">
+        <div class="wide"><label>Producto</label><select id="vProducto"></select></div>
+        <div><label>Cantidad</label><input id="vCantidad" type="number" min="1" step="1" value="1" required></div>
+        <div></div>
+        <div class="wide actions"><button type="submit">Añadir al carrito</button></div>
+      </form>
+    </div>
+    <div class="card">
+      <h2>Carrito</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th><th></th></tr></thead>
+          <tbody id="tablaCarrito"></tbody>
+        </table>
+      </div>
+      <div class="total">Total: <strong id="totalCarrito">$0</strong></div>
+      <div class="actions" style="margin-top:10px">
+        <button id="btnVaciar">Vaciar</button>
+        <button id="btnCobrar" class="primary">Cobrar</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORIAL -->
+  <section id="tab-ventas" class="hidden">
+    <div class="card">
+      <h2>Historial de ventas</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Detalle</th><th class="num">Total</th></tr></thead>
+          <tbody id="tablaVentas"></tbody>
+        </table>
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button id="btnRestablecer" class="danger">Restablecer inventario inicial</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const STOCK_BAJO = 10;
+  const INVENTARIO_INICIAL = [
+    { nombre: "Todo Rico",  precio: 4500, cantidad: 0 },
+    { nombre: "Chicles",    precio: 1500, cantidad: 48 },
+    { nombre: "Choco Ramo", precio: 4000, cantidad: 45 },
+    { nombre: "Bombón",     precio: 600,  cantidad: 48 },
+    { nombre: "Jet",        precio: 1500, cantidad: 100 },
+    { nombre: "Golpe",      precio: 2500, cantidad: 48 },
+  ];
+
+  const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const dinero = n => "$" + Math.round(n).toLocaleString("es-CO");
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const $ = id => document.getElementById(id);
+
+  function cargar(clave, porDefecto) {
+    try { const v = localStorage.getItem(clave); return v ? JSON.parse(v) : porDefecto(); }
+    catch { return porDefecto(); }
+  }
+  function guardar() {
+    try {
+      localStorage.setItem("abarrotes.productos", JSON.stringify(productos));
+      localStorage.setItem("abarrotes.ventas", JSON.stringify(ventas));
+    } catch {}
+  }
+  const inicial = () => INVENTARIO_INICIAL.map(p => ({ id: nuevoId(), ...p }));
+
+  let productos = cargar("abarrotes.productos", inicial);
+  let ventas = cargar("abarrotes.ventas", () => []);
+  let carrito = [];
+  let editandoId = null;
+
+  // ---------- Render ----------
+  function render() {
+    const filtro = $("buscar").value.trim().toLowerCase();
+    const lista = productos
+      .filter(p => p.nombre.toLowerCase().includes(filtro))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+    $("tablaInventario").innerHTML = lista.length ? lista.map(p => `
+      <tr class="${p.cantidad <= STOCK_BAJO ? "low" : ""}">
+        <td>${esc(p.nombre)}${p.cantidad === 0 ? '<span class="badge">Agotado</span>' : p.cantidad <= STOCK_BAJO ? '<span class="badge">Stock bajo</span>' : ""}</td>
+        <td class="num">${dinero(p.precio)}</td>
+        <td class="num">${p.cantidad}</td>
+        <td class="num">${dinero(p.precio * p.cantidad)}</td>
+        <td><div class="actions">
+          <button class="small" data-accion="surtir" data-id="${p.id}">+ Surtir</button>
+          <button class="small" data-accion="editar" data-id="${p.id}">Editar</button>
+          <button class="small danger" data-accion="eliminar" data-id="${p.id}">Eliminar</button>
+        </div></td>
+      </tr>`).join("") : `<tr><td colspan="5" class="empty">Sin productos</td></tr>`;
+
+    // Estadísticas
+    const hoy = new Date().toDateString();
+    $("stProductos").textContent = productos.length;
+    $("stUnidades").textContent = productos.reduce((s, p) => s + p.cantidad, 0).toLocaleString("es-CO");
+    $("stValor").textContent = dinero(productos.reduce((s, p) => s + p.precio * p.cantidad, 0));
+    $("stVentas").textContent = dinero(ventas.filter(v => new Date(v.fecha).toDateString() === hoy).reduce((s, v) => s + v.total, 0));
+
+    // Selector de venta
+    const sel = $("vProducto"), previo = sel.value;
+    sel.innerHTML = productos
+      .slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+      .map(p => `<option value="${p.id}" ${p.cantidad - enCarrito(p.id) <= 0 ? "disabled" : ""}>${esc(p.nombre)} — ${dinero(p.precio)} (disp. ${p.cantidad - enCarrito(p.id)})</option>`)
+      .join("");
+    if (previo) sel.value = previo;
+
+    // Carrito
+    $("tablaCarrito").innerHTML = carrito.length ? carrito.map((c, i) => {
+      const p = productos.find(x => x.id === c.id);
+      return `<tr><td>${esc(p.nombre)}</td><td class="num">${c.cantidad}</td><td class="num">${dinero(p.precio)}</td>
+        <td class="num">${dinero(p.precio * c.cantidad)}</td>
+        <td><button class="small danger" data-quitar="${i}">✕</button></td></tr>`;
+    }).join("") : `<tr><td colspan="5" class="empty">Carrito vacío</td></tr>`;
+    $("totalCarrito").textContent = dinero(totalCarrito());
+
+    // Historial
+    $("tablaVentas").innerHTML = ventas.length ? ventas.slice().reverse().map(v => `
+      <tr><td>${new Date(v.fecha).toLocaleString("es-CO")}</td>
+      <td style="white-space:normal">${v.items.map(i => `${i.cantidad} × ${esc(i.nombre)}`).join(", ")}</td>
+      <td class="num">${dinero(v.total)}</td></tr>`).join("")
+      : `<tr><td colspan="3" class="empty">Aún no hay ventas</td></tr>`;
+  }
+
+  const enCarrito = id => carrito.filter(c => c.id === id).reduce((s, c) => s + c.cantidad, 0);
+  const totalCarrito = () => carrito.reduce((s, c) => s + productos.find(p => p.id === c.id).precio * c.cantidad, 0);
+
+  // ---------- Pestañas ----------
+  document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("active", x === b));
+    ["inventario", "vender", "ventas"].forEach(t => $("tab-" + t).classList.toggle("hidden", t !== b.dataset.tab));
+  }));
+
+  // ---------- Inventario ----------
+  function limpiarForm() {
+    editandoId = null;
+    $("formProducto").reset();
+    $("formTitulo").textContent = "Agregar producto";
+    $("btnGuardar").textContent = "Agregar";
+    $("btnCancelar").classList.add("hidden");
+  }
+
+  $("formProducto").addEventListener("submit", e => {
+    e.preventDefault();
+    const datos = {
+      nombre: $("fNombre").value.trim(),
+      precio: Number($("fPrecio").value),
+      cantidad: Math.floor(Number($("fCantidad").value)),
+    };
+    if (!datos.nombre) return;
+    const duplicado = productos.find(p => p.nombre.toLowerCase() === datos.nombre.toLowerCase() && p.id !== editandoId);
+    if (duplicado) { alert("Ya existe un producto con ese nombre."); return; }
+    if (editandoId) Object.assign(productos.find(p => p.id === editandoId), datos);
+    else productos.push({ id: nuevoId(), ...datos });
+    guardar(); limpiarForm(); render();
+  });
+  $("btnCancelar").addEventListener("click", limpiarForm);
+  $("buscar").addEventListener("input", render);
+
+  $("tablaInventario").addEventListener("click", e => {
+    const b = e.target.closest("button[data-accion]");
+    if (!b) return;
+    const p = productos.find(x => x.id === b.dataset.id);
+    if (b.dataset.accion === "surtir") {
+      const n = Math.floor(Number(prompt(`¿Cuántas unidades de "${p.nombre}" llegaron?`, "12")));
+      if (n > 0) { p.cantidad += n; guardar(); render(); }
+    } else if (b.dataset.accion === "editar") {
+      editandoId = p.id;
+      $("fNombre").value = p.nombre; $("fPrecio").value = p.precio; $("fCantidad").value = p.cantidad;
+      $("formTitulo").textContent = "Editar producto";
+      $("btnGuardar").textContent = "Guardar cambios";
+      $("btnCancelar").classList.remove("hidden");
+      $("fNombre").focus();
+    } else if (b.dataset.accion === "eliminar" && confirm(`¿Eliminar "${p.nombre}"?`)) {
+      productos = productos.filter(x => x.id !== p.id);
+      carrito = carrito.filter(c => c.id !== p.id);
+      guardar(); render();
+    }
+  });
+
+  // ---------- Ventas ----------
+  $("formVenta").addEventListener("submit", e => {
+    e.preventDefault();
+    const id = $("vProducto").value;
+    const n = Math.floor(Number($("vCantidad").value));
+    const p = productos.find(x => x.id === id);
+    if (!p || n <= 0) return;
+    if (n > p.cantidad - enCarrito(id)) { alert(`Solo hay ${p.cantidad - enCarrito(id)} unidades disponibles de ${p.nombre}.`); return; }
+    const linea = carrito.find(c => c.id === id);
+    if (linea) linea.cantidad += n; else carrito.push({ id, cantidad: n });
+    $("vCantidad").value = 1;
+    render();
+  });
+
+  $("tablaCarrito").addEventListener("click", e => {
+    const b = e.target.closest("button[data-quitar]");
+    if (b) { carrito.splice(Number(b.dataset.quitar), 1); render(); }
+  });
+  $("btnVaciar").addEventListener("click", () => { carrito = []; render(); });
+
+  $("btnCobrar").addEventListener("click", () => {
+    if (!carrito.length) return;
+    const items = carrito.map(c => {
+      const p = productos.find(x => x.id === c.id);
+      p.cantidad -= c.cantidad;
+      return { nombre: p.nombre, precio: p.precio, cantidad: c.cantidad };
+    });
+    const total = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
+    ventas.push({ fecha: new Date().toISOString(), items, total });
+    carrito = [];
+    guardar(); render();
+    alert(`Venta registrada: ${dinero(total)}`);
+  });
+
+  $("btnRestablecer").addEventListener("click", () => {
+    if (!confirm("Esto borra el inventario actual y el historial de ventas. ¿Continuar?")) return;
+    productos = inicial(); ventas = []; carrito = [];
+    guardar(); limpiarForm(); render();
+  });
+
+  render();
+</script>
+</body>
+</html>
