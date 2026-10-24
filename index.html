@@ -1,249 +1,321 @@
-<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Abarrotes Inventario</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap">
 <style>
+  /* Layout: barra superior fija con pestañas; contenido en una columna, lista de productos tipo estante, caja registradora táctil */
   :root {
-    --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #667085;
-    --border: #e3e6eb; --accent: #1f7a4d; --accent-text: #ffffff;
-    --danger: #c0392b; --warn-bg: #fff4e0; --warn: #9a5b00;
+    --bg: #f3f5f2; --surface: #ffffff; --ink: #18221d; --muted: #5d6b63; --line: #dde3dd;
+    --accent: #1d6b4f; --accent-ink: #ffffff; --tag: #ffd34d; --tag-ink: #3b2c00;
+    --warn: #a35a00; --warn-bg: #fff1d6; --bad: #b3261e; --bad-bg: #fde8e6;
+    --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+    --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #12151b; --card: #1b2029; --text: #e7eaf0; --muted: #98a2b3;
-      --border: #2b3240; --accent: #34a46b; --accent-text: #0d1310;
-      --danger: #e5675a; --warn-bg: #3a2c12; --warn: #f2b45a;
+      --bg: #101613; --surface: #18201c; --ink: #e6ede8; --muted: #95a59c; --line: #2a352f;
+      --accent: #4cc191; --accent-ink: #0b1a13; --tag: #f2c94c; --tag-ink: #2b2000;
+      --warn: #f0b35a; --warn-bg: #3a2b12; --bad: #f08a80; --bad-bg: #3d1d1a; color-scheme: dark;
     }
   }
+  :root[data-theme="dark"] {
+    --bg: #101613; --surface: #18201c; --ink: #e6ede8; --muted: #95a59c; --line: #2a352f;
+    --accent: #4cc191; --accent-ink: #0b1a13; --tag: #f2c94c; --tag-ink: #2b2000;
+    --warn: #f0b35a; --warn-bg: #3a2b12; --bad: #f08a80; --bad-bg: #3d1d1a; color-scheme: dark;
+  }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  }
-  header { background: var(--accent); color: var(--accent-text); padding: 16px; }
-  header h1 { margin: 0; font-size: 1.3rem; }
-  main { max-width: 960px; margin: 0 auto; padding: 16px; }
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .stat, .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
-  .stat small { color: var(--muted); display: block; }
-  .stat strong { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
-  .card { margin-bottom: 16px; }
-  .card h2 { margin: 0 0 10px; font-size: 1.05rem; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-  .tabs button { flex: 1; }
-  button {
-    font: inherit; border: 1px solid var(--border); background: var(--card); color: var(--text);
-    border-radius: 8px; padding: 8px 12px; cursor: pointer;
-  }
-  button.primary, .tabs button.active { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-  button.danger { color: var(--danger); }
-  button.small { padding: 4px 8px; font-size: .85rem; }
-  input, select {
-    font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--bg); color: var(--text); width: 100%;
-  }
-  form.row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: end; }
-  label { font-size: .8rem; color: var(--muted); display: block; }
-  .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  th { font-size: .8rem; color: var(--muted); font-weight: 600; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  tr.low td { background: var(--warn-bg); }
-  .badge { font-size: .75rem; color: var(--warn); font-weight: 600; margin-left: 6px; }
-  .actions { display: flex; gap: 4px; justify-content: flex-end; }
-  .hidden { display: none; }
-  .empty { color: var(--muted); text-align: center; padding: 16px; }
-  .total { text-align: right; font-size: 1.1rem; margin-top: 10px; }
-  @media (max-width: 600px) {
-    form.row { grid-template-columns: 1fr 1fr; }
-    form.row .wide { grid-column: 1 / -1; }
-  }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.45 var(--body); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--accent); }
+  .wrap { max-width: 760px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+  header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--accent); color: var(--accent-ink); }
+  header .wrap { padding-block: 12px 0; }
+  h1 { font: 800 1.35rem/1.1 var(--display); margin: 0 0 10px; letter-spacing: -.01em; }
+  .tabs { display: flex; gap: 4px; }
+  .tabs button { flex: 1; border: 0; background: transparent; color: inherit; opacity: .75; font: 600 .95rem var(--body); padding: 10px 4px 12px; border-bottom: 3px solid transparent; cursor: pointer; }
+  .tabs button.active { opacity: 1; border-bottom-color: var(--tag); }
+
+  main.wrap { padding-block: 16px 96px; display: grid; gap: 16px; }
+  h2 { font: 600 1.05rem var(--display); margin: 0; }
+  .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  @media (min-width: 640px) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .stat small { display: block; color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+  .stat strong { font: 800 1.3rem var(--display); font-variant-numeric: tabular-nums; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 12px; }
+  label { display: grid; gap: 4px; font-size: .8rem; color: var(--muted); }
+  input { font: 500 1rem var(--body); padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); width: 100%; min-width: 0; }
+  input:focus-visible, button:focus-visible { outline: 3px solid var(--tag); outline-offset: 2px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .row-end { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  button { font: 600 .95rem var(--body); border-radius: 10px; padding: 10px 14px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  button.danger { color: var(--bad); }
+  button.sm { padding: 6px 10px; font-size: .85rem; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+
+  .shelf { list-style: none; margin: 0; padding: 0; display: grid; }
+  .item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .item:first-child { border-top: 0; }
+  .item .name { font-weight: 600; overflow-wrap: anywhere; }
+  .item .meta { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+  .qty { grid-row: span 2; align-self: center; text-align: right; font: 800 1.5rem var(--display); font-variant-numeric: tabular-nums; }
+  .qty small { display: block; font: 500 .7rem var(--body); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .price { display: inline-block; background: var(--tag); color: var(--tag-ink); font-weight: 600; border-radius: 4px; padding: 0 6px; margin-right: 6px; }
+  .pill { display: inline-block; font-size: .72rem; font-weight: 600; border-radius: 999px; padding: 1px 8px; margin-left: 6px; vertical-align: 2px; }
+  .pill.low { background: var(--warn-bg); color: var(--warn); }
+  .pill.out { background: var(--bad-bg); color: var(--bad); }
+  .item .actions { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .item .actions input { width: 90px; padding: 6px 8px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+  .tile { text-align: left; display: grid; gap: 2px; padding: 12px; border-radius: 12px; min-height: 84px; }
+  .tile .t-name { font-weight: 600; overflow-wrap: anywhere; }
+  .tile .t-meta { font-size: .8rem; color: var(--muted); font-weight: 500; }
+  .tile .t-count { justify-self: start; background: var(--accent); color: var(--accent-ink); border-radius: 999px; font-size: .75rem; padding: 0 8px; }
+
+  .cart-line { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+  .cart-line:first-child { border-top: 0; }
+  .stepper { display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  .stepper button { width: 36px; height: 36px; padding: 0; }
+  .sub { min-width: 72px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid var(--ink); padding-top: 10px; }
+  .total strong { font: 800 1.6rem var(--display); font-variant-numeric: tabular-nums; }
+
+  .sale { padding: 10px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; }
+  .sale:first-child { border-top: 0; }
+  .sale .when { color: var(--muted); font-size: .8rem; }
+  .sale .amt { grid-row: span 2; align-self: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  .empty { color: var(--muted); text-align: center; padding: 18px 8px; }
+  .note { font-size: .82rem; color: var(--muted); }
+  #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; max-width: calc(100% - 32px); z-index: 20; }
+  #toast.error { background: var(--bad); color: #fff; }
+  @media (prefers-reduced-motion: no-preference) { #toast { transition: opacity .2s; } }
 </style>
-</head>
-<body>
-<header><h1>🛒 Abarrotes — Inventario</h1></header>
-<main>
+
+<header>
+  <div class="wrap">
+    <h1>Abarrotes</h1>
+    <nav class="tabs">
+      <button id="tabBtn-vender" data-tab="vender">Vender</button>
+      <button id="tabBtn-inventario" data-tab="inventario" class="active">Inventario</button>
+      <button id="tabBtn-ventas" data-tab="ventas">Ventas</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
   <section class="stats">
     <div class="stat"><small>Productos</small><strong id="stProductos">0</strong></div>
-    <div class="stat"><small>Unidades en stock</small><strong id="stUnidades">0</strong></div>
-    <div class="stat"><small>Valor del inventario</small><strong id="stValor">$0</strong></div>
-    <div class="stat"><small>Ventas de hoy</small><strong id="stVentas">$0</strong></div>
-  </section>
-
-  <nav class="tabs">
-    <button data-tab="inventario" class="active">Inventario</button>
-    <button data-tab="vender">Vender</button>
-    <button data-tab="ventas">Historial de ventas</button>
-  </nav>
-
-  <!-- INVENTARIO -->
-  <section id="tab-inventario">
-    <div class="card">
-      <h2 id="formTitulo">Agregar producto</h2>
-      <form id="formProducto" class="row">
-        <div class="wide"><label>Nombre</label><input id="fNombre" required></div>
-        <div><label>Precio</label><input id="fPrecio" type="number" min="0" step="50" required></div>
-        <div><label>Cantidad</label><input id="fCantidad" type="number" min="0" step="1" required></div>
-        <div class="wide actions">
-          <button type="submit" class="primary" id="btnGuardar">Agregar</button>
-          <button type="button" id="btnCancelar" class="hidden">Cancelar</button>
-        </div>
-      </form>
-    </div>
-    <div class="card">
-      <input id="buscar" placeholder="Buscar producto…" style="margin-bottom:10px">
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Producto</th><th class="num">Precio</th><th class="num">Cantidad</th>
-            <th class="num">Valor</th><th class="num">Acciones</th>
-          </tr></thead>
-          <tbody id="tablaInventario"></tbody>
-        </table>
-      </div>
-    </div>
+    <div class="stat"><small>Unidades</small><strong id="stUnidades">0</strong></div>
+    <div class="stat"><small>Valor stock</small><strong id="stValor">$0</strong></div>
+    <div class="stat"><small>Vendido hoy</small><strong id="stVentas">$0</strong></div>
   </section>
 
   <!-- VENDER -->
-  <section id="tab-vender" class="hidden">
-    <div class="card">
-      <h2>Nueva venta</h2>
-      <form id="formVenta" class="row">
-        <div class="wide"><label>Producto</label><select id="vProducto"></select></div>
-        <div><label>Cantidad</label><input id="vCantidad" type="number" min="1" step="1" value="1" required></div>
-        <div></div>
-        <div class="wide actions"><button type="submit">Añadir al carrito</button></div>
-      </form>
+  <section id="tab-vender" hidden>
+    <div class="panel">
+      <h2>Toca un producto para agregarlo</h2>
+      <div class="tiles" id="tiles"></div>
     </div>
-    <div class="card">
-      <h2>Carrito</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num">Precio</th><th class="num">Subtotal</th><th></th></tr></thead>
-          <tbody id="tablaCarrito"></tbody>
-        </table>
-      </div>
-      <div class="total">Total: <strong id="totalCarrito">$0</strong></div>
-      <div class="actions" style="margin-top:10px">
+    <div class="panel" style="margin-top:16px">
+      <h2>Venta actual</h2>
+      <div id="carrito"></div>
+      <div class="total"><span>Total</span><strong id="totalCarrito">$0</strong></div>
+      <div class="row-end">
         <button id="btnVaciar">Vaciar</button>
         <button id="btnCobrar" class="primary">Cobrar</button>
       </div>
     </div>
   </section>
 
-  <!-- HISTORIAL -->
-  <section id="tab-ventas" class="hidden">
-    <div class="card">
-      <h2>Historial de ventas</h2>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Fecha</th><th>Detalle</th><th class="num">Total</th></tr></thead>
-          <tbody id="tablaVentas"></tbody>
-        </table>
-      </div>
-      <div class="actions" style="margin-top:10px">
-        <button id="btnRestablecer" class="danger">Restablecer inventario inicial</button>
-      </div>
+  <!-- INVENTARIO -->
+  <section id="tab-inventario">
+    <div class="panel">
+      <h2 id="formTitulo">Agregar producto</h2>
+      <form id="formProducto" class="form-grid">
+        <label class="full">Nombre<input id="fNombre" required autocomplete="off"></label>
+        <label>Precio ($)<input id="fPrecio" type="number" inputmode="numeric" min="0" step="50" required></label>
+        <label>Cantidad<input id="fCantidad" type="number" inputmode="numeric" min="0" step="1" required></label>
+        <div class="full row-end">
+          <button type="button" id="btnCancelar" hidden>Cancelar</button>
+          <button type="submit" class="primary" id="btnGuardar">Agregar</button>
+        </div>
+      </form>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <input id="buscar" type="search" placeholder="Buscar producto…" aria-label="Buscar producto">
+      <ul class="shelf" id="lista"></ul>
     </div>
   </section>
+
+  <!-- VENTAS -->
+  <section id="tab-ventas" hidden>
+    <div class="panel">
+      <h2>Historial de ventas</h2>
+      <div id="historial"></div>
+    </div>
+    <div class="panel" style="margin-top:16px" id="panelReset" hidden>
+      <p class="note">Modo local: los datos se guardan solo en este navegador.</p>
+      <div class="row-end" id="resetBox"><button id="btnRestablecer" class="danger">Restablecer inventario inicial</button></div>
+    </div>
+  </section>
+  <p class="note" id="estado">Cargando…</p>
 </main>
+<div id="toast" hidden></div>
 
 <script>
   const STOCK_BAJO = 10;
+  // Solo para el modo local (abriendo el archivo fuera de claude.ai). En línea, los datos viven en la base de datos.
   const INVENTARIO_INICIAL = [
     { nombre: "Todo Rico Original", precio: 4500, cantidad: 32 },
     { nombre: "Todo Rico BBQ",      precio: 4500, cantidad: 32 },
-    { nombre: "Chicles",    precio: 1500, cantidad: 48 },
-    { nombre: "Choco Ramo", precio: 4000, cantidad: 45 },
-    { nombre: "Bombón",     precio: 600,  cantidad: 48 },
-    { nombre: "Jet",        precio: 1500, cantidad: 100 },
-    { nombre: "Golpe",      precio: 2500, cantidad: 48 },
+    { nombre: "Chicles",            precio: 1500, cantidad: 48 },
+    { nombre: "Choco Ramo",         precio: 4000, cantidad: 45 },
+    { nombre: "Bombón",             precio: 600,  cantidad: 48 },
+    { nombre: "Jet",                precio: 1500, cantidad: 100 },
+    { nombre: "Golpe",              precio: 2500, cantidad: 48 },
   ];
 
+  const $ = id => document.getElementById(id);
   const nuevoId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const dinero = n => "$" + Math.round(n).toLocaleString("es-CO");
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const $ = id => document.getElementById(id);
+  const porNombre = (a, b) => a.nombre.localeCompare(b.nombre, "es");
 
-  function cargar(clave, porDefecto) {
-    try { const v = localStorage.getItem(clave); return v ? JSON.parse(v) : porDefecto(); }
-    catch { return porDefecto(); }
-  }
-  function guardar() {
-    try {
-      localStorage.setItem("abarrotes.productos", JSON.stringify(productos));
-      localStorage.setItem("abarrotes.ventas", JSON.stringify(ventas));
-    } catch {}
-  }
-  const inicial = () => INVENTARIO_INICIAL.map(p => ({ id: nuevoId(), ...p }));
+  let productos = [], ventas = [], carrito = {}; // carrito: id -> cantidad
+  let editandoId = null, surtiendoId = null, borrandoId = null, confirmReset = false, ocupado = false;
 
-  let productos = cargar("abarrotes.productos", inicial);
-  let ventas = cargar("abarrotes.ventas", () => []);
-  let carrito = [];
-  let editandoId = null;
+  let toastTimer;
+  function aviso(msg, error = false) {
+    const t = $("toast");
+    t.textContent = msg; t.className = error ? "error" : ""; t.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2800);
+  }
+
+  // ---------- Almacenamiento: base de datos en línea, o localStorage como respaldo ----------
+  const store = {
+    modo: "cargando", db: null,
+    async init() {
+      const db = window.claude?.use ? await window.claude.use("db").catch(() => null) : null;
+      if (db) {
+        this.modo = "nube"; this.db = db;
+        db.collection("productos").onSnapshot(s => { productos = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, errDb);
+        db.collection("ventas").orderBy("fecha", "desc").limit(500)
+          .onSnapshot(s => { ventas = s.docs.map(d => ({ id: d.id, ...d.data() })); render(); }, errDb);
+      } else {
+        this.modo = "local";
+        productos = leer("abarrotes.productos") ?? INVENTARIO_INICIAL.map(p => ({ id: nuevoId(), ...p }));
+        ventas = leer("abarrotes.ventas") ?? [];
+      }
+      render();
+    },
+    persistir() {
+      if (this.modo !== "local") return;
+      try {
+        localStorage.setItem("abarrotes.productos", JSON.stringify(productos));
+        localStorage.setItem("abarrotes.ventas", JSON.stringify(ventas));
+      } catch {}
+    },
+    async crear(datos) {
+      if (this.modo === "nube") return this.db.collection("productos").add(datos);
+      productos.push({ id: nuevoId(), ...datos }); this.persistir();
+    },
+    async cambiar(id, cambios) {
+      if (this.modo === "nube") return this.db.doc("productos/" + id).update(cambios);
+      Object.assign(productos.find(p => p.id === id), cambios); this.persistir();
+    },
+    async borrar(id) {
+      if (this.modo === "nube") return this.db.doc("productos/" + id).delete();
+      productos = productos.filter(p => p.id !== id); this.persistir();
+    },
+    async registrarVenta(venta) {
+      if (this.modo === "nube") return this.db.collection("ventas").add(venta);
+      ventas.unshift({ id: nuevoId(), ...venta }); this.persistir();
+    },
+  };
+  function leer(k) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } }
+  function errDb() { $("estado").textContent = "Se perdió la conexión con los datos. Recarga la página."; }
+  function errEscritura(e) {
+    aviso(e?.code === "invalid_argument" ? "No tienes permiso para modificar este inventario." : "No se pudo guardar. Intenta de nuevo.", true);
+  }
+  async function hacer(fn) {
+    if (ocupado) return;
+    ocupado = true;
+    try { await fn(); } catch (e) { errEscritura(e); } finally { ocupado = false; render(); }
+  }
 
   // ---------- Render ----------
   function render() {
-    const filtro = $("buscar").value.trim().toLowerCase();
-    const lista = productos
-      .filter(p => p.nombre.toLowerCase().includes(filtro))
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-
-    $("tablaInventario").innerHTML = lista.length ? lista.map(p => `
-      <tr class="${p.cantidad <= STOCK_BAJO ? "low" : ""}">
-        <td>${esc(p.nombre)}${p.cantidad === 0 ? '<span class="badge">Agotado</span>' : p.cantidad <= STOCK_BAJO ? '<span class="badge">Stock bajo</span>' : ""}</td>
-        <td class="num">${dinero(p.precio)}</td>
-        <td class="num">${p.cantidad}</td>
-        <td class="num">${dinero(p.precio * p.cantidad)}</td>
-        <td><div class="actions">
-          <button class="small" data-accion="surtir" data-id="${p.id}">+ Surtir</button>
-          <button class="small" data-accion="editar" data-id="${p.id}">Editar</button>
-          <button class="small danger" data-accion="eliminar" data-id="${p.id}">Eliminar</button>
-        </div></td>
-      </tr>`).join("") : `<tr><td colspan="5" class="empty">Sin productos</td></tr>`;
-
-    // Estadísticas
     const hoy = new Date().toDateString();
     $("stProductos").textContent = productos.length;
     $("stUnidades").textContent = productos.reduce((s, p) => s + p.cantidad, 0).toLocaleString("es-CO");
     $("stValor").textContent = dinero(productos.reduce((s, p) => s + p.precio * p.cantidad, 0));
     $("stVentas").textContent = dinero(ventas.filter(v => new Date(v.fecha).toDateString() === hoy).reduce((s, v) => s + v.total, 0));
+    $("estado").textContent = store.modo === "nube" ? "Guardado en línea: los cambios se ven en todos tus dispositivos."
+      : store.modo === "local" ? "Modo local: los datos se guardan solo en este navegador." : "Cargando…";
+    $("panelReset").hidden = store.modo !== "local";
+    $("resetBox").innerHTML = confirmReset
+      ? `<span class="note">¿Borrar ventas y volver al inventario inicial?</span><button id="resetNo">No</button><button id="resetSi" class="danger">Sí, restablecer</button>`
+      : `<button id="btnRestablecer" class="danger">Restablecer inventario inicial</button>`;
 
-    // Selector de venta
-    const sel = $("vProducto"), previo = sel.value;
-    sel.innerHTML = productos
-      .slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
-      .map(p => `<option value="${p.id}" ${p.cantidad - enCarrito(p.id) <= 0 ? "disabled" : ""}>${esc(p.nombre)} — ${dinero(p.precio)} (disp. ${p.cantidad - enCarrito(p.id)})</option>`)
-      .join("");
-    if (previo) sel.value = previo;
+    // Inventario
+    const filtro = $("buscar").value.trim().toLowerCase();
+    const lista = productos.filter(p => p.nombre.toLowerCase().includes(filtro)).sort(porNombre);
+    $("lista").innerHTML = lista.length ? lista.map(p => {
+      const estado = p.cantidad <= 0 ? '<span class="pill out">Agotado</span>' : p.cantidad <= STOCK_BAJO ? '<span class="pill low">Stock bajo</span>' : "";
+      let acciones;
+      if (surtiendoId === p.id) acciones = `<input id="surtirCant" type="number" inputmode="numeric" min="1" value="12" aria-label="Unidades que llegaron">
+          <button class="sm primary" data-a="surtirOk" data-id="${p.id}">Sumar</button><button class="sm" data-a="cancelar">Cancelar</button>`;
+      else if (borrandoId === p.id) acciones = `<span class="note">¿Eliminar ${esc(p.nombre)}?</span>
+          <button class="sm" data-a="cancelar">No</button><button class="sm danger" data-a="borrarOk" data-id="${p.id}">Sí, eliminar</button>`;
+      else acciones = `<button class="sm" data-a="surtir" data-id="${p.id}">+ Surtir</button>
+          <button class="sm" data-a="editar" data-id="${p.id}">Editar</button>
+          <button class="sm danger" data-a="borrar" data-id="${p.id}">Eliminar</button>`;
+      return `<li class="item">
+        <div class="name">${esc(p.nombre)}${estado}</div>
+        <div class="qty">${p.cantidad}<small>unid.</small></div>
+        <div class="meta"><span class="price">${dinero(p.precio)}</span>Valor ${dinero(p.precio * p.cantidad)}</div>
+        <div class="actions">${acciones}</div></li>`;
+    }).join("") : `<li class="empty">${productos.length ? "Ningún producto coincide con la búsqueda." : store.modo === "cargando" ? "Cargando inventario…" : "Aún no hay productos. Agrega el primero arriba."}</li>`;
 
-    // Carrito
-    $("tablaCarrito").innerHTML = carrito.length ? carrito.map((c, i) => {
-      const p = productos.find(x => x.id === c.id);
-      return `<tr><td>${esc(p.nombre)}</td><td class="num">${c.cantidad}</td><td class="num">${dinero(p.precio)}</td>
-        <td class="num">${dinero(p.precio * c.cantidad)}</td>
-        <td><button class="small danger" data-quitar="${i}">✕</button></td></tr>`;
-    }).join("") : `<tr><td colspan="5" class="empty">Carrito vacío</td></tr>`;
-    $("totalCarrito").textContent = dinero(totalCarrito());
+    // Vender
+    const disp = p => p.cantidad - (carrito[p.id] || 0);
+    $("tiles").innerHTML = productos.length ? productos.slice().sort(porNombre).map(p => `
+      <button class="tile" data-vender="${p.id}" ${disp(p) <= 0 ? "disabled" : ""}>
+        <span class="t-name">${esc(p.nombre)}</span>
+        <span class="t-meta">${dinero(p.precio)} · quedan ${disp(p)}</span>
+        ${carrito[p.id] ? `<span class="t-count">${carrito[p.id]} en la venta</span>` : ""}
+      </button>`).join("") : `<p class="empty">No hay productos en el inventario.</p>`;
+
+    const lineas = Object.entries(carrito).map(([id, n]) => ({ p: productos.find(x => x.id === id), n })).filter(l => l.p);
+    $("carrito").innerHTML = lineas.length ? lineas.map(({ p, n }) => `
+      <div class="cart-line">
+        <span>${esc(p.nombre)}<br><span class="note">${dinero(p.precio)} c/u</span></span>
+        <span class="stepper"><button data-menos="${p.id}" aria-label="Quitar uno">−</button>${n}<button data-mas="${p.id}" aria-label="Agregar uno" ${disp(p) <= 0 ? "disabled" : ""}>+</button></span>
+        <span class="sub">${dinero(p.precio * n)}</span>
+      </div>`).join("") : `<p class="empty">Todavía no hay productos en esta venta.</p>`;
+    $("totalCarrito").textContent = dinero(lineas.reduce((s, l) => s + l.p.precio * l.n, 0));
+    $("btnCobrar").disabled = !lineas.length || ocupado;
 
     // Historial
-    $("tablaVentas").innerHTML = ventas.length ? ventas.slice().reverse().map(v => `
-      <tr><td>${new Date(v.fecha).toLocaleString("es-CO")}</td>
-      <td style="white-space:normal">${v.items.map(i => `${i.cantidad} × ${esc(i.nombre)}`).join(", ")}</td>
-      <td class="num">${dinero(v.total)}</td></tr>`).join("")
-      : `<tr><td colspan="3" class="empty">Aún no hay ventas</td></tr>`;
+    $("historial").innerHTML = ventas.length ? ventas.map(v => `
+      <div class="sale">
+        <span>${v.items.map(i => `${i.cantidad} × ${esc(i.nombre)}`).join(", ")}</span>
+        <span class="amt">${dinero(v.total)}</span>
+        <span class="when">${new Date(v.fecha).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</span>
+      </div>`).join("") : `<p class="empty">Aún no hay ventas. Las ventas cobradas aparecen aquí.</p>`;
   }
-
-  const enCarrito = id => carrito.filter(c => c.id === id).reduce((s, c) => s + c.cantidad, 0);
-  const totalCarrito = () => carrito.reduce((s, c) => s + productos.find(p => p.id === c.id).precio * c.cantidad, 0);
 
   // ---------- Pestañas ----------
   document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
     document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("active", x === b));
-    ["inventario", "vender", "ventas"].forEach(t => $("tab-" + t).classList.toggle("hidden", t !== b.dataset.tab));
+    ["vender", "inventario", "ventas"].forEach(t => { $("tab-" + t).hidden = t !== b.dataset.tab; });
   }));
 
   // ---------- Inventario ----------
@@ -252,88 +324,95 @@
     $("formProducto").reset();
     $("formTitulo").textContent = "Agregar producto";
     $("btnGuardar").textContent = "Agregar";
-    $("btnCancelar").classList.add("hidden");
+    $("btnCancelar").hidden = true;
   }
-
   $("formProducto").addEventListener("submit", e => {
     e.preventDefault();
-    const datos = {
-      nombre: $("fNombre").value.trim(),
-      precio: Number($("fPrecio").value),
-      cantidad: Math.floor(Number($("fCantidad").value)),
-    };
+    const datos = { nombre: $("fNombre").value.trim(), precio: Number($("fPrecio").value), cantidad: Math.floor(Number($("fCantidad").value)) };
     if (!datos.nombre) return;
-    const duplicado = productos.find(p => p.nombre.toLowerCase() === datos.nombre.toLowerCase() && p.id !== editandoId);
-    if (duplicado) { alert("Ya existe un producto con ese nombre."); return; }
-    if (editandoId) Object.assign(productos.find(p => p.id === editandoId), datos);
-    else productos.push({ id: nuevoId(), ...datos });
-    guardar(); limpiarForm(); render();
+    if (productos.some(p => p.nombre.toLowerCase() === datos.nombre.toLowerCase() && p.id !== editandoId)) {
+      aviso("Ya existe un producto con ese nombre.", true); return;
+    }
+    const id = editandoId;
+    hacer(async () => {
+      if (id) await store.cambiar(id, datos); else await store.crear(datos);
+      aviso(id ? "Producto actualizado" : "Producto agregado");
+      limpiarForm();
+    });
   });
   $("btnCancelar").addEventListener("click", limpiarForm);
   $("buscar").addEventListener("input", render);
 
-  $("tablaInventario").addEventListener("click", e => {
-    const b = e.target.closest("button[data-accion]");
+  $("lista").addEventListener("click", e => {
+    const b = e.target.closest("button[data-a]");
     if (!b) return;
     const p = productos.find(x => x.id === b.dataset.id);
-    if (b.dataset.accion === "surtir") {
-      const n = Math.floor(Number(prompt(`¿Cuántas unidades de "${p.nombre}" llegaron?`, "12")));
-      if (n > 0) { p.cantidad += n; guardar(); render(); }
-    } else if (b.dataset.accion === "editar") {
-      editandoId = p.id;
-      $("fNombre").value = p.nombre; $("fPrecio").value = p.precio; $("fCantidad").value = p.cantidad;
-      $("formTitulo").textContent = "Editar producto";
-      $("btnGuardar").textContent = "Guardar cambios";
-      $("btnCancelar").classList.remove("hidden");
-      $("fNombre").focus();
-    } else if (b.dataset.accion === "eliminar" && confirm(`¿Eliminar "${p.nombre}"?`)) {
-      productos = productos.filter(x => x.id !== p.id);
-      carrito = carrito.filter(c => c.id !== p.id);
-      guardar(); render();
+    switch (b.dataset.a) {
+      case "surtir": surtiendoId = p.id; borrandoId = null; render(); $("surtirCant").select(); break;
+      case "borrar": borrandoId = p.id; surtiendoId = null; render(); break;
+      case "cancelar": surtiendoId = borrandoId = null; render(); break;
+      case "surtirOk": {
+        const n = Math.floor(Number($("surtirCant").value));
+        if (!(n > 0)) { aviso("Escribe cuántas unidades llegaron.", true); return; }
+        surtiendoId = null;
+        hacer(async () => { await store.cambiar(p.id, { cantidad: p.cantidad + n }); aviso(`+${n} ${p.nombre}`); });
+        break;
+      }
+      case "borrarOk":
+        borrandoId = null; delete carrito[p.id];
+        hacer(async () => { await store.borrar(p.id); aviso("Producto eliminado"); });
+        break;
+      case "editar":
+        editandoId = p.id;
+        $("fNombre").value = p.nombre; $("fPrecio").value = p.precio; $("fCantidad").value = p.cantidad;
+        $("formTitulo").textContent = "Editar producto";
+        $("btnGuardar").textContent = "Guardar cambios";
+        $("btnCancelar").hidden = false;
+        $("formProducto").scrollIntoView({ block: "center" }); $("fNombre").focus();
+        break;
     }
   });
 
-  // ---------- Ventas ----------
-  $("formVenta").addEventListener("submit", e => {
-    e.preventDefault();
-    const id = $("vProducto").value;
-    const n = Math.floor(Number($("vCantidad").value));
-    const p = productos.find(x => x.id === id);
-    if (!p || n <= 0) return;
-    if (n > p.cantidad - enCarrito(id)) { alert(`Solo hay ${p.cantidad - enCarrito(id)} unidades disponibles de ${p.nombre}.`); return; }
-    const linea = carrito.find(c => c.id === id);
-    if (linea) linea.cantidad += n; else carrito.push({ id, cantidad: n });
-    $("vCantidad").value = 1;
+  // ---------- Vender ----------
+  function sumar(id, d) {
+    const p = productos.find(x => x.id === id), n = (carrito[id] || 0) + d;
+    if (!p) return;
+    if (n > p.cantidad) { aviso(`Solo hay ${p.cantidad} de ${p.nombre}.`, true); return; }
+    if (n <= 0) delete carrito[id]; else carrito[id] = n;
+    render();
+  }
+  $("tiles").addEventListener("click", e => { const b = e.target.closest("[data-vender]"); if (b) sumar(b.dataset.vender, 1); });
+  $("carrito").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (b?.dataset.mas) sumar(b.dataset.mas, 1);
+    if (b?.dataset.menos) sumar(b.dataset.menos, -1);
+  });
+  $("btnVaciar").addEventListener("click", () => { carrito = {}; render(); });
+  $("btnCobrar").addEventListener("click", () => hacer(async () => {
+    const lineas = Object.entries(carrito).map(([id, n]) => ({ p: productos.find(x => x.id === id), n })).filter(l => l.p);
+    const falta = lineas.find(l => l.n > l.p.cantidad);
+    if (falta) { aviso(`Solo quedan ${falta.p.cantidad} de ${falta.p.nombre}.`, true); return; }
+    for (const { p, n } of lineas) await store.cambiar(p.id, { cantidad: p.cantidad - n });
+    const items = lineas.map(({ p, n }) => ({ nombre: p.nombre, precio: p.precio, cantidad: n }));
+    const total = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
+    await store.registrarVenta({ fecha: new Date().toISOString(), items, total });
+    carrito = {};
+    aviso(`Venta cobrada: ${dinero(total)}`);
+  }));
+
+  // ---------- Restablecer (solo modo local) ----------
+  $("resetBox").addEventListener("click", e => {
+    const id = e.target.closest("button")?.id;
+    if (id === "btnRestablecer") confirmReset = true;
+    if (id === "resetNo") confirmReset = false;
+    if (id === "resetSi") {
+      confirmReset = false; carrito = {};
+      productos = INVENTARIO_INICIAL.map(p => ({ id: nuevoId(), ...p })); ventas = [];
+      store.persistir(); limpiarForm(); aviso("Inventario restablecido");
+    }
     render();
   });
 
-  $("tablaCarrito").addEventListener("click", e => {
-    const b = e.target.closest("button[data-quitar]");
-    if (b) { carrito.splice(Number(b.dataset.quitar), 1); render(); }
-  });
-  $("btnVaciar").addEventListener("click", () => { carrito = []; render(); });
-
-  $("btnCobrar").addEventListener("click", () => {
-    if (!carrito.length) return;
-    const items = carrito.map(c => {
-      const p = productos.find(x => x.id === c.id);
-      p.cantidad -= c.cantidad;
-      return { nombre: p.nombre, precio: p.precio, cantidad: c.cantidad };
-    });
-    const total = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
-    ventas.push({ fecha: new Date().toISOString(), items, total });
-    carrito = [];
-    guardar(); render();
-    alert(`Venta registrada: ${dinero(total)}`);
-  });
-
-  $("btnRestablecer").addEventListener("click", () => {
-    if (!confirm("Esto borra el inventario actual y el historial de ventas. ¿Continuar?")) return;
-    productos = inicial(); ventas = []; carrito = [];
-    guardar(); limpiarForm(); render();
-  });
-
   render();
+  store.init();
 </script>
-</body>
-</html>
