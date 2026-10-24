@@ -91,6 +91,14 @@
   .sale .when { color: var(--muted); font-size: .8rem; }
   .sale .amt { grid-row: span 2; align-self: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 
+  .pago { display: grid; gap: 8px; }
+  .metodos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .metodos button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .billetes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .billetes button { background: var(--tag); color: var(--tag-ink); border-color: transparent; font-variant-numeric: tabular-nums; }
+  .cambio { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+  .vueltas strong { font: 800 1.4rem var(--display); color: var(--accent); }
+  .vueltas.falta strong { color: var(--bad); }
   .empty { color: var(--muted); text-align: center; padding: 18px 8px; }
   .note { font-size: .82rem; color: var(--muted); }
   #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; max-width: calc(100% - 32px); z-index: 20; }
@@ -127,6 +135,26 @@
       <h2>Venta actual</h2>
       <div id="carrito"></div>
       <div class="total"><span>Total</span><strong id="totalCarrito">$0</strong></div>
+      <div id="pago" class="pago">
+        <span class="note">¿Cómo paga?</span>
+        <div class="metodos">
+          <button type="button" data-metodo="Nequi">Nequi</button>
+          <button type="button" data-metodo="Efectivo">Efectivo</button>
+        </div>
+        <div id="efectivoBox" class="pago" hidden>
+          <span class="note">Toca los billetes que te entregó</span>
+          <div class="billetes">
+            <button type="button" data-billete="2000">$2.000</button>
+            <button type="button" data-billete="5000">$5.000</button>
+            <button type="button" data-billete="10000">$10.000</button>
+            <button type="button" data-billete="20000">$20.000</button>
+            <button type="button" data-billete="50000">$50.000</button>
+            <button type="button" data-billete="100000">$100.000</button>
+          </div>
+          <div class="cambio"><span>Recibido <strong id="recibido">$0</strong></span><button type="button" class="sm" id="btnBorrarBilletes">Borrar</button></div>
+          <div class="cambio vueltas"><span>Vueltas</span><strong id="vueltas">$0</strong></div>
+        </div>
+      </div>
       <div class="row-end">
         <button id="btnVaciar">Vaciar</button>
         <button id="btnCobrar" class="primary">Cobrar</button>
@@ -189,6 +217,7 @@
   const porNombre = (a, b) => a.nombre.localeCompare(b.nombre, "es");
 
   let productos = [], ventas = [], carrito = {}; // carrito: id -> cantidad
+  let metodo = null, billetes = []; // pago de la venta actual
   let editandoId = null, surtiendoId = null, borrandoId = null, confirmReset = false, ocupado = false;
 
   let toastTimer;
@@ -300,15 +329,25 @@
         <span class="stepper"><button data-menos="${p.id}" aria-label="Quitar uno">−</button>${n}<button data-mas="${p.id}" aria-label="Agregar uno" ${disp(p) <= 0 ? "disabled" : ""}>+</button></span>
         <span class="sub">${dinero(p.precio * n)}</span>
       </div>`).join("") : `<p class="empty">Todavía no hay productos en esta venta.</p>`;
-    $("totalCarrito").textContent = dinero(lineas.reduce((s, l) => s + l.p.precio * l.n, 0));
-    $("btnCobrar").disabled = !lineas.length || ocupado;
+    const total = lineas.reduce((s, l) => s + l.p.precio * l.n, 0);
+    const recibido = billetes.reduce((s, b) => s + b, 0);
+    $("totalCarrito").textContent = dinero(total);
+    document.querySelectorAll("[data-metodo]").forEach(b => b.classList.toggle("active", b.dataset.metodo === metodo));
+    $("efectivoBox").hidden = metodo !== "Efectivo";
+    $("recibido").textContent = dinero(recibido);
+    const faltaPago = recibido < total;
+    $("vueltas").textContent = faltaPago ? `Faltan ${dinero(total - recibido)}` : dinero(recibido - total);
+    $("vueltas").parentElement.classList.toggle("falta", faltaPago);
+    $("btnCobrar").disabled = !lineas.length || ocupado || !metodo || (metodo === "Efectivo" && faltaPago);
 
     // Historial
     $("historial").innerHTML = ventas.length ? ventas.map(v => `
       <div class="sale">
         <span>${v.items.map(i => `${i.cantidad} × ${esc(i.nombre)}`).join(", ")}</span>
         <span class="amt">${dinero(v.total)}</span>
-        <span class="when">${new Date(v.fecha).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</span>
+        <span class="when">${new Date(v.fecha).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}${
+          v.pago?.metodo === "Efectivo" ? ` · Efectivo: recibió ${dinero(v.pago.recibido)}, vueltas ${dinero(v.pago.vueltas)}`
+          : v.pago?.metodo ? ` · ${esc(v.pago.metodo)}` : ""}</span>
       </div>`).join("") : `<p class="empty">Aún no hay ventas. Las ventas cobradas aparecen aquí.</p>`;
   }
 
@@ -387,7 +426,15 @@
     if (b?.dataset.mas) sumar(b.dataset.mas, 1);
     if (b?.dataset.menos) sumar(b.dataset.menos, -1);
   });
-  $("btnVaciar").addEventListener("click", () => { carrito = {}; render(); });
+  $("btnVaciar").addEventListener("click", () => { carrito = {}; metodo = null; billetes = []; render(); });
+  $("pago").addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.metodo) { metodo = b.dataset.metodo; if (metodo !== "Efectivo") billetes = []; }
+    if (b.dataset.billete) billetes.push(Number(b.dataset.billete));
+    if (b.id === "btnBorrarBilletes") billetes = [];
+    render();
+  });
   $("btnCobrar").addEventListener("click", () => hacer(async () => {
     const lineas = Object.entries(carrito).map(([id, n]) => ({ p: productos.find(x => x.id === id), n })).filter(l => l.p);
     const falta = lineas.find(l => l.n > l.p.cantidad);
@@ -395,9 +442,11 @@
     for (const { p, n } of lineas) await store.cambiar(p.id, { cantidad: p.cantidad - n });
     const items = lineas.map(({ p, n }) => ({ nombre: p.nombre, precio: p.precio, cantidad: n }));
     const total = items.reduce((s, i) => s + i.precio * i.cantidad, 0);
-    await store.registrarVenta({ fecha: new Date().toISOString(), items, total });
-    carrito = {};
-    aviso(`Venta cobrada: ${dinero(total)}`);
+    const recibido = billetes.reduce((s, b) => s + b, 0);
+    const pago = metodo === "Efectivo" ? { metodo, billetes, recibido, vueltas: recibido - total } : { metodo };
+    await store.registrarVenta({ fecha: new Date().toISOString(), items, total, pago });
+    carrito = {}; metodo = null; billetes = [];
+    aviso(pago.metodo === "Efectivo" ? `Cobrado ${dinero(total)} · Vueltas ${dinero(pago.vueltas)}` : `Cobrado ${dinero(total)} por Nequi`);
   }));
 
   // ---------- Restablecer (solo modo local) ----------
