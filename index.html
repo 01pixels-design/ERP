@@ -96,6 +96,8 @@
   .metodos button.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .billetes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .billetes button { background: var(--tag); color: var(--tag-ink); border-color: transparent; font-variant-numeric: tabular-nums; }
+  .billetes.monedas { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .billetes.monedas button { background: var(--surface); color: var(--ink); border-color: var(--line); border-radius: 999px; padding: 10px 4px; }
   .cambio { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
   .vueltas strong { font: 800 1.4rem var(--display); color: var(--accent); }
   .vueltas.falta strong { color: var(--bad); }
@@ -142,7 +144,7 @@
           <button type="button" data-metodo="Efectivo">Efectivo</button>
         </div>
         <div id="efectivoBox" class="pago" hidden>
-          <span class="note">Toca los billetes que te entregó</span>
+          <span class="note">Toca los billetes y monedas que te entregó</span>
           <div class="billetes">
             <button type="button" data-billete="2000">$2.000</button>
             <button type="button" data-billete="5000">$5.000</button>
@@ -150,6 +152,13 @@
             <button type="button" data-billete="20000">$20.000</button>
             <button type="button" data-billete="50000">$50.000</button>
             <button type="button" data-billete="100000">$100.000</button>
+          </div>
+          <div class="billetes monedas">
+            <button type="button" data-billete="50">$50</button>
+            <button type="button" data-billete="100">$100</button>
+            <button type="button" data-billete="200">$200</button>
+            <button type="button" data-billete="500">$500</button>
+            <button type="button" data-billete="1000">$1.000</button>
           </div>
           <div class="cambio"><span>Recibido <strong id="recibido">$0</strong></span><button type="button" class="sm" id="btnBorrarBilletes">Borrar</button></div>
           <div class="cambio vueltas"><span>Vueltas</span><strong id="vueltas">$0</strong></div>
