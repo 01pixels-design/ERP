@@ -34,7 +34,7 @@
   header .wrap { padding-block: 12px 0; }
   h1 { font: 800 1.35rem/1.1 var(--display); margin: 0 0 10px; letter-spacing: -.01em; }
   .tabs { display: flex; gap: 4px; }
-  .tabs button { flex: 1; border: 0; background: transparent; color: inherit; opacity: .75; font: 600 .95rem var(--body); padding: 10px 4px 12px; border-bottom: 3px solid transparent; cursor: pointer; }
+  .tabs button { flex: 1; border: 0; background: transparent; color: inherit; opacity: .75; font: 600 .85rem var(--body); padding: 10px 2px 12px; border-bottom: 3px solid transparent; cursor: pointer; }
   .tabs button.active { opacity: 1; border-bottom-color: var(--tag); }
 
   main.wrap { padding-block: 16px 96px; display: grid; gap: 16px; }
@@ -108,6 +108,15 @@
   .cliente-top .name { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
   .mov { display: flex; justify-content: space-between; gap: 8px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
   .mov.abono span:last-child { color: var(--accent); }
+  .tabla-wrap { overflow-x: auto; }
+  .tabla { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  .tabla th, .tabla td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+  .tabla th { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .tabla td:not(:first-child), .tabla th:not(:first-child) { text-align: right; white-space: nowrap; }
+  #repDias td:first-child { white-space: nowrap; }
+  .tabla tr.fin td { font-weight: 700; border-bottom: 0; border-top: 2px solid var(--ink); }
+  .periodos { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+  .periodos button { padding: 8px 4px; font-size: .85rem; }
   .empty { color: var(--muted); text-align: center; padding: 18px 8px; }
   .note { font-size: .82rem; color: var(--muted); }
   #toast { position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 600; max-width: calc(100% - 32px); z-index: 20; }
@@ -123,6 +132,7 @@
       <button id="tabBtn-inventario" data-tab="inventario" class="active">Inventario</button>
       <button id="tabBtn-ventas" data-tab="ventas">Ventas</button>
       <button id="tabBtn-fiados" data-tab="fiados">Fiados</button>
+      <button id="tabBtn-reportes" data-tab="reportes">Reportes</button>
     </nav>
   </div>
 </header>
@@ -229,6 +239,39 @@
     <div class="panel">
       <div class="cambio"><h2>Fiados</h2><span>Por cobrar <strong class="debe" id="porCobrar">$0</strong></span></div>
       <div id="listaFiados"></div>
+    </div>
+  </section>
+  <!-- REPORTES -->
+  <section id="tab-reportes" hidden>
+    <div class="panel">
+      <h2>Reporte de ventas</h2>
+      <div class="metodos periodos" id="periodos">
+        <button type="button" data-periodo="hoy">Hoy</button>
+        <button type="button" data-periodo="ayer">Ayer</button>
+        <button type="button" data-periodo="semana">7 días</button>
+        <button type="button" data-periodo="mes">Este mes</button>
+        <button type="button" data-periodo="todo">Todo</button>
+      </div>
+      <p class="note" id="repRango"></p>
+      <div class="stats">
+        <div class="stat"><small>Vendido</small><strong id="repVendido">$0</strong></div>
+        <div class="stat"><small>Ventas</small><strong id="repNum">0</strong></div>
+        <div class="stat"><small>Promedio</small><strong id="repProm">$0</strong></div>
+        <div class="stat"><small>Fiado sin pagar</small><strong id="repFiado">$0</strong></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h2>Dinero recibido</h2>
+      <div class="tabla-wrap"><table class="tabla" id="repPagos"></table></div>
+      <p class="note">Incluye los abonos de fiados recibidos en el período.</p>
+    </div>
+    <div class="panel" style="margin-top:16px">
+      <h2>Productos vendidos</h2>
+      <div class="tabla-wrap"><table class="tabla" id="repProductos"></table></div>
+    </div>
+    <div class="panel" style="margin-top:16px" id="repDiasPanel">
+      <h2>Ventas por día</h2>
+      <div class="tabla-wrap"><table class="tabla" id="repDias"></table></div>
     </div>
   </section>
   <p class="note" id="estado">Cargando…</p>
@@ -341,8 +384,99 @@
   }
   const esAbierto = c => abonandoCliente === c.key;
 
+  // ---------- Reportes ----------
+  let periodo = "hoy", repVentas = null, repPedido = 0;
+  function rangoPeriodo(p) {
+    const ahora = new Date(), hoy0 = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+    const dias = n => new Date(hoy0.getFullYear(), hoy0.getMonth(), hoy0.getDate() + n);
+    return { hoy: [hoy0, dias(1)], ayer: [dias(-1), hoy0], semana: [dias(-6), dias(1)],
+      mes: [new Date(hoy0.getFullYear(), hoy0.getMonth(), 1), dias(1)], todo: [new Date(0), dias(1)] }[p];
+  }
+  async function cargarReporte() {
+    const pedido = ++repPedido, [desde, hasta] = rangoPeriodo(periodo).map(d => d.toISOString());
+    repVentas = null; renderReporte();
+    let lista = [];
+    try {
+      if (store.modo === "nube") {
+        // Páginas de 1000, de la más reciente hacia atrás
+        let tope = hasta;
+        for (;;) {
+          const snap = await store.db.collection("ventas").where("fecha", ">=", desde).where("fecha", "<", tope)
+            .orderBy("fecha", "desc").limit(1000).get();
+          const docs = snap.docs.map(d => d.data());
+          lista.push(...docs);
+          if (docs.length < 1000) break;
+          tope = docs[docs.length - 1].fecha;
+        }
+      } else lista = ventas.filter(v => v.fecha >= desde && v.fecha < hasta);
+    } catch (e) { if (pedido === repPedido) aviso("No se pudo cargar el reporte. Intenta de nuevo.", true); return; }
+    if (pedido !== repPedido) return;
+    repVentas = lista; renderReporte();
+  }
+  function renderReporte() {
+    document.querySelectorAll("[data-periodo]").forEach(b => b.classList.toggle("active", b.dataset.periodo === periodo));
+    const [desde, hasta] = rangoPeriodo(periodo);
+    const fmt = d => d.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" });
+    const ultimo = new Date(hasta - 1);
+    $("repRango").textContent = repVentas === null ? "Cargando…"
+      : periodo === "todo" ? "Todas las ventas registradas" : fmt(desde) === fmt(ultimo) ? fmt(desde) : `${fmt(desde)} – ${fmt(ultimo)}`;
+    const vs = repVentas || [];
+    const vendido = vs.reduce((s, v) => s + v.total, 0);
+    $("repVendido").textContent = dinero(vendido);
+    $("repNum").textContent = vs.length;
+    $("repProm").textContent = dinero(vs.length ? vendido / vs.length : 0);
+    $("repFiado").textContent = dinero(vs.reduce((s, v) => s + (v.pago?.metodo === "Fiado" ? v.pago.debe : 0), 0));
+
+    // Dinero recibido por forma de pago
+    const pagos = { Efectivo: { ventas: 0, abonos: 0 }, Nequi: { ventas: 0, abonos: 0 } };
+    for (const v of vs) {
+      const p = v.pago || {};
+      if (pagos[p.metodo]) pagos[p.metodo].ventas += v.total;
+      if (p.metodo === "Fiado" && p.abono && pagos[p.metodoAbono]) pagos[p.metodoAbono].abonos += p.abono;
+    }
+    const d0 = desde.toISOString(), d1 = hasta.toISOString();
+    for (const f of fiados) if (f.tipo === "abono" && f.fecha >= d0 && f.fecha < d1 && pagos[f.metodo]) pagos[f.metodo].abonos += f.valor;
+    const sinPago = vs.filter(v => !v.pago).reduce((s, v) => s + v.total, 0);
+    const filaPago = (n, x) => `<tr><td>${n}</td><td>${dinero(x.ventas)}</td><td>${dinero(x.abonos)}</td><td>${dinero(x.ventas + x.abonos)}</td></tr>`;
+    const totRec = Object.values(pagos).reduce((s, x) => s + x.ventas + x.abonos, 0);
+    $("repPagos").innerHTML = `<tr><th>Forma</th><th>Ventas</th><th>Abonos</th><th>Total</th></tr>
+      ${filaPago("Efectivo", pagos.Efectivo)}${filaPago("Nequi", pagos.Nequi)}
+      ${sinPago ? `<tr><td>Sin forma registrada</td><td>${dinero(sinPago)}</td><td>–</td><td>${dinero(sinPago)}</td></tr>` : ""}
+      <tr class="fin"><td>Total recibido</td><td></td><td></td><td>${dinero(totRec + sinPago)}</td></tr>`;
+
+    // Productos
+    const prods = new Map();
+    for (const v of vs) for (const i of v.items) {
+      const x = prods.get(i.nombre) || { nombre: i.nombre, unidades: 0, valor: 0 };
+      x.unidades += i.cantidad; x.valor += i.precio * i.cantidad; prods.set(i.nombre, x);
+    }
+    const lp = [...prods.values()].sort((a, b) => b.valor - a.valor);
+    $("repProductos").innerHTML = lp.length ? `<tr><th>Producto</th><th>Unid.</th><th>Valor</th></tr>
+      ${lp.map(x => `<tr><td>${esc(x.nombre)}</td><td>${x.unidades}</td><td>${dinero(x.valor)}</td></tr>`).join("")}
+      <tr class="fin"><td>Total</td><td>${lp.reduce((s, x) => s + x.unidades, 0)}</td><td>${dinero(vendido)}</td></tr>`
+      : `<tr><td class="empty">${repVentas === null ? "Cargando…" : "No hay ventas en este período."}</td></tr>`;
+
+    // Por día
+    const dias = new Map();
+    for (const v of vs) {
+      const f = new Date(v.fecha), k = new Date(f.getFullYear(), f.getMonth(), f.getDate()).getTime();
+      const x = dias.get(k) || { n: 0, total: 0, Efectivo: 0, Nequi: 0, Fiado: 0 };
+      x.n++; x.total += v.total; if (v.pago?.metodo in x) x[v.pago.metodo] += v.total; dias.set(k, x);
+    }
+    $("repDiasPanel").hidden = dias.size < 2;
+    $("repDias").innerHTML = `<tr><th>Día</th><th>Ventas</th><th>Efectivo</th><th>Nequi</th><th>Fiado</th><th>Total</th></tr>
+      ${[...dias.entries()].sort((a, b) => b[0] - a[0]).map(([k, x]) => `<tr>
+        <td>${new Date(k).toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "numeric" })}</td>
+        <td>${x.n}</td><td>${dinero(x.Efectivo)}</td><td>${dinero(x.Nequi)}</td><td>${dinero(x.Fiado)}</td><td>${dinero(x.total)}</td></tr>`).join("")}`;
+  }
+  $("periodos").addEventListener("click", e => {
+    const b = e.target.closest("[data-periodo]");
+    if (b) { periodo = b.dataset.periodo; cargarReporte(); }
+  });
+
   // ---------- Render ----------
   function render() {
+    if (!$("tab-reportes").hidden && repVentas !== null) renderReporte();
     const hoy = new Date().toDateString();
     $("stProductos").textContent = productos.length;
     $("stUnidades").textContent = productos.reduce((s, p) => s + p.cantidad, 0).toLocaleString("es-CO");
@@ -452,7 +586,8 @@
   // ---------- Pestañas ----------
   document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
     document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("active", x === b));
-    ["vender", "inventario", "ventas", "fiados"].forEach(t => { $("tab-" + t).hidden = t !== b.dataset.tab; });
+    ["vender", "inventario", "ventas", "fiados", "reportes"].forEach(t => { $("tab-" + t).hidden = t !== b.dataset.tab; });
+    if (b.dataset.tab === "reportes") cargarReporte();
   }));
 
   // ---------- Inventario ----------
