@@ -110,7 +110,7 @@
   .mov.abono span:last-child { color: var(--accent); }
   .tabla-wrap { overflow-x: auto; }
   .tabla { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-  .tabla th, .tabla td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); }
+  .tabla th, .tabla td { text-align: left; padding: 8px 4px; border-bottom: 1px solid var(--line); }
   .tabla th { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
   .tabla td:not(:first-child), .tabla th:not(:first-child) { text-align: right; white-space: nowrap; }
   #repDias td:first-child { white-space: nowrap; }
@@ -266,7 +266,8 @@
       <p class="note">Incluye los abonos de fiados recibidos en el período.</p>
     </div>
     <div class="panel" style="margin-top:16px">
-      <h2>Productos vendidos</h2>
+      <h2>Inventario: vendidos y quedan</h2>
+      <p class="note">Vendidos en el período elegido; quedan = existencias de hoy.</p>
       <div class="tabla-wrap"><table class="tabla" id="repProductos"></table></div>
     </div>
     <div class="panel" style="margin-top:16px" id="repDiasPanel">
@@ -445,16 +446,18 @@
       <tr class="fin"><td>Total recibido</td><td></td><td></td><td>${dinero(totRec + sinPago)}</td></tr>`;
 
     // Productos
-    const prods = new Map();
+    const prods = new Map(productos.map(p => [p.nombre, { nombre: p.nombre, unidades: 0, valor: 0, quedan: p.cantidad }]));
     for (const v of vs) for (const i of v.items) {
-      const x = prods.get(i.nombre) || { nombre: i.nombre, unidades: 0, valor: 0 };
+      const x = prods.get(i.nombre) || { nombre: i.nombre, unidades: 0, valor: 0, quedan: null };
       x.unidades += i.cantidad; x.valor += i.precio * i.cantidad; prods.set(i.nombre, x);
     }
-    const lp = [...prods.values()].sort((a, b) => b.valor - a.valor);
-    $("repProductos").innerHTML = lp.length ? `<tr><th>Producto</th><th>Unid.</th><th>Valor</th></tr>
-      ${lp.map(x => `<tr><td>${esc(x.nombre)}</td><td>${x.unidades}</td><td>${dinero(x.valor)}</td></tr>`).join("")}
-      <tr class="fin"><td>Total</td><td>${lp.reduce((s, x) => s + x.unidades, 0)}</td><td>${dinero(vendido)}</td></tr>`
-      : `<tr><td class="empty">${repVentas === null ? "Cargando…" : "No hay ventas en este período."}</td></tr>`;
+    const lp = [...prods.values()].sort((a, b) => b.valor - a.valor || a.nombre.localeCompare(b.nombre, "es"));
+    const quedan = x => x.quedan === null ? "–"
+      : x.quedan <= 0 ? `<span class="pill out">Agotado</span>` : x.quedan <= STOCK_BAJO ? `<span class="pill low">${x.quedan}</span>` : x.quedan;
+    $("repProductos").innerHTML = lp.length ? `<tr><th>Producto</th><th>Vend.</th><th>Quedan</th><th>Valor</th></tr>
+      ${lp.map(x => `<tr><td>${esc(x.nombre)}</td><td>${x.unidades}</td><td>${quedan(x)}</td><td>${dinero(x.valor)}</td></tr>`).join("")}
+      <tr class="fin"><td>Total</td><td>${lp.reduce((s, x) => s + x.unidades, 0)}</td><td>${lp.reduce((s, x) => s + Math.max(0, x.quedan || 0), 0)}</td><td>${dinero(vendido)}</td></tr>`
+      : `<tr><td class="empty">${repVentas === null ? "Cargando…" : "No hay productos."}</td></tr>`;
 
     // Por día
     const dias = new Map();
